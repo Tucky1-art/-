@@ -1,0 +1,1629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>销售单生成器 | Invoice Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .nav-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .nav-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-primary { background: #4299e1; color: white; }
+        .btn-success { background: #38a169; color: white; }
+        .btn-warning { background: #ed8936; color: white; }
+
+        /* 历史记录面板 */
+        .history-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: none;
+        }
+
+        .history-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .history-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f7fafc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item:hover {
+            background: #f7fafc;
+        }
+
+        .history-name {
+            font-weight: 600;
+        }
+
+        .history-time {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .history-btns {
+            display: flex;
+            gap: 8px;
+        }
+
+        .history-btn {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* 主内容区 */
+        .content {
+            display: none;
+        }
+
+        .active-content {
+            display: block !important;
+        }
+
+        /* 导入区域 */
+        .import-section {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .import-btn {
+            background: #9f7aea;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        #excelFile {
+            display: none;
+        }
+
+        /* 原有样式保留 */
+        .title-container {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .main-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .sub-title {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        .header-settings {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .settings-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .header-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .header-item {
+            display: flex;
+            align-items: center;
+            background: #edf2f7;
+            border-radius: 6px;
+            padding: 8px 12px;
+            gap: 8px;
+        }
+
+        .header-item input {
+            border: none;
+            background: transparent;
+            width: 100px;
+            outline: none;
+        }
+
+        .del-header {
+            color: #e53e3e;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .add-header-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        .product-form {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .form-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .form-group input {
+            height: 40px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0 12px;
+            outline: none;
+        }
+
+        .img-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .upload-btn {
+            height: 40px;
+            background: #edf2f7;
+            border: 1px dashed #cbd5e0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .rotate-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .rotate-btn {
+            flex: 1;
+            height: 35px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .img-preview {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 6px;
+            display: none;
+            transform-origin: center;
+        }
+
+        .add-product-btn {
+            width: 100%;
+            height: 45px;
+            background: #38a169;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            flex: 1;
+            min-width: 120px;
+            height: 45px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .save-btn { background: #4299e1; color: white; }
+        .print-btn { background: #9f7aea; color: white; }
+        .export-btn { background: #ed64a6; color: white; }
+        .share-btn { background: #f56565; color: white; }
+
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .price-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .price-table thead {
+            background: #2d3748;
+            color: white;
+        }
+
+        .price-table th, .price-table td {
+            padding: 12px 8px;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .product-img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .del-btn {
+            color: #e53e3e;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .summary-row {
+            background: #edf2f7;
+            font-weight: bold;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+
+        .modal-img {
+            max-width: 100%;
+            border-radius: 6px;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background: #2d3748;
+            color: white;
+            border-radius: 6px;
+            z-index: 10000;
+            display: none;
+        }
+
+        .toast.success { background: #38a169; }
+        .toast.error { background: #e53e3e; }
+
+        /* 打印样式 */
+        @media print {
+            * { margin:0 !important; padding:0 !important; }
+            body { background:white !important; width:100% !important; }
+            .navbar, .history-panel, .header-settings, .product-form,
+            .action-buttons, .empty-state, .modal, .toast, .import-section,
+            .title-container, .price-table th:last-child, .price-table td:last-child {
+                display: none !important;
+            }
+            .table-container {
+                width: 100% !important;
+                border:1px solid #e2e8f0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                overflow: visible !important;
+            }
+            .price-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                page-break-inside: auto !important;
+            }
+            .price-table th, .price-table td {
+                border: 1px solid #e2e8f0 !important;
+                padding: 8px 5px !important;
+                font-size: 12px !important;
+                page-break-inside: avoid !important;
+            }
+            .price-table th {
+                background: #f7fafc !important;
+                color: #2d3748 !important;
+                font-weight: 700 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .summary-row {
+                background: #edf2f7 !important;
+                font-weight: 700 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .product-img {
+                width: 40px !important;
+                height: 40px !important;
+                object-fit: cover !important;
+                border-radius: 4px !important;
+            }
+            tr { page-break-inside: avoid !important; }
+            thead { display: table-header-group !important; }
+            tfoot { display: table-footer-group !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 导航栏 -->
+<div class="navbar">
+    <div class="nav-title">销售单生成器 | Invoice Generator</div>
+    <div class="nav-btns">
+        <button class="nav-btn btn-primary" onclick="showHistory()">历史记录</button>
+        <button class="nav-btn btn-success" onclick="newTable()">新建表格</button>
+        <button class="nav-btn btn-warning" onclick="saveAsHistory()">保存到历史</button>
+    </div>
+</div>
+
+<!-- 历史记录面板 -->
+<div class="history-panel" id="historyPanel">
+    <div class="history-title">历史表格记录</div>
+    <div class="history-list" id="historyList"></div>
+</div>
+
+<!-- 导入Excel区域 -->
+<div class="import-section">
+    <span>导入Excel编辑：</span>
+    <button class="import-btn" onclick="document.getElementById('excelFile').click()">选择Excel文件</button>
+    <input type="file" id="excelFile" accept=".xlsx,.xls">
+    <span id="importTip"></span>
+</div>
+
+<!-- 主内容区 -->
+<div class="content active-content" id="mainContent">
+    <div class="title-container">
+        <h1 class="main-title">价格表生成器 | Price List Generator</h1>
+        <p class="sub-title">轻松制作专业价格表，无需制表经验，一键生成、打印、导出</p>
+    </div>
+
+    <div class="header-settings">
+        <div class="settings-title">
+            <span>自定义表头 | Custom Header</span>
+            <button class="add-header-btn" onclick="addHeader()">+ 新增列</button>
+        </div>
+        <div class="header-list" id="headerList"></div>
+    </div>
+
+    <div class="product-form">
+        <div class="form-title">添加商品 | Add Product</div>
+        <div class="form-grid" id="formGrid"></div>
+        <button class="add-product-btn" onclick="addProduct()">添加到价格表 | Add to List</button>
+    </div>
+
+    <div class="action-buttons">
+        <button class="action-btn save-btn" onclick="saveCurrentTable()">💾 保存当前表</button>
+        <button class="action-btn print-btn" onclick="printTable()">🖨️ 打印表格</button>
+        <button class="action-btn export-btn" onclick="exportExcel()">📊 导出Excel</button>
+        <button class="action-btn share-btn" onclick="generateShareImg()">📸 生成分享图</button>
+    </div>
+
+    <div class="table-container">
+        <table class="price-table" id="priceTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState">暂无商品数据</div>
+    </div>
+</div>
+
+<!-- 分享模态框 -->
+<div class="modal" id="shareModal">
+    <div class="modal-content">
+        <img id="modalImg" class="modal-img">
+        <div style="text-align:center; margin-top:15px;">
+            <button onclick="saveShareImg()" class="action-btn" style="background:#38a169;color:white">保存图片</button>
+            <button onclick="closeModal()" class="action-btn" style="background:#e2e8f0;margin-left:10px">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // 全局配置
+    const PRICE_UNIT = "RMB";
+    let currentTableId = null;
+
+    // 默认表头
+    let headers = [
+        { id:1, name:'商品图片', enName:'Picture', type:'image' },
+        { id:2, name:'商品名称', enName:'Description', type:'text' },
+        { id:3, name:'单位', enName:'Unit', type:'text' },
+        { id:4, name:'数量', enName:'Quantity', type:'number' },
+        { id:5, name:'单价', enName:'Unit Price', type:'number' },
+        { id:6, name:'总价', enName:'Amount', type:'formula' },
+        { id:7, name:'备注', enName:'Remark', type:'text' },
+        { id:8, name:'操作', enName:'Action', type:'action' }
+    ];
+
+    let productList = [];
+    let nextHeaderId = 9;
+    let currentImgUrl = "";
+    let currentImgRotate = 0;
+
+    // 历史记录结构
+    let tableHistory = JSON.parse(localStorage.getItem('tableHistory')) || [];
+
+    window.onload = function(){
+        renderHistoryList();
+        loadDefaultTable();
+        initImportExcel();
+    };
+
+    // ==============================
+    // Toast 提示
+    // ==============================
+    function showToast(msg, type){
+        let t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast ' + (type || '');
+        t.style.display = 'block';
+        setTimeout(()=>{ t.style.display='none'; }, 2000);
+    }
+
+    // ==============================
+    // 历史记录功能
+    // ==============================
+    function showHistory(){
+        let panel = document.getElementById('historyPanel');
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        renderHistoryList();
+    }
+
+    function newTable(){
+        currentTableId = null;
+        productList = [];
+        currentImgUrl = "";
+        currentImgRotate = 0;
+        renderAll();
+        showToast("已新建空白表格", "success");
+    }
+
+    function saveAsHistory(){
+        let name = prompt("请输入表格名称：", "销售单_" + new Date().toLocaleString());
+        if(!name) return;
+
+        let tableData = {
+            id: Date.now(),
+            name: name,
+            time: new Date().toLocaleString(),
+            headers: JSON.parse(JSON.stringify(headers)),
+            products: JSON.parse(JSON.stringify(productList))
+        };
+
+        tableHistory.unshift(tableData);
+        localStorage.setItem('tableHistory', JSON.stringify(tableHistory));
+        renderHistoryList();
+        showToast("已保存到历史记录", "success");
+    }
+
+    function renderHistoryList(){
+        let list = document.getElementById('historyList');
+        list.innerHTML = "";
+
+        if(tableHistory.length === 0){
+            list.innerHTML = "<div class='history-item' style='justify-content:center;color:#718096'>暂无历史记录</div>";
+            return;
+        }
+
+        tableHistory.forEach(item => {
+            let div = document.createElement('div');
+            div.className = "history-item";
+            div.innerHTML = `
+                <div>
+                    <div class="history-name">${item.name}</div>
+                    <div class="history-time">${item.time}</div>
+                </div>
+                <div class="history-btns">
+                    <button class="history-btn btn-primary" onclick="loadHistory(${item.id})">加载</button>
+                    <button class="history-btn btn-warning" onclick="deleteHistory(${item.id})">删除</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function loadHistory(id){
+        let item = tableHistory.find(t => t.id === id);
+        if(!item) return;
+        currentTableId = id;
+        headers = JSON.parse(JSON.stringify(item.headers));
+        productList = JSON.parse(JSON.stringify(item.products));
+        nextHeaderId = headers.length > 0 ? Math.max(...headers.map(h=>h.id)) + 1 : 9;
+        renderAll();
+        showToast("已加载历史表格", "success");
+    }
+
+    function deleteHistory(id){
+        if(!confirm("确定删除该表格？")) return;
+        tableHistory = tableHistory.filter(t => t.id !== id);
+        localStorage.setItem('tableHistory', JSON.stringify(tableHistory));
+        renderHistoryList();
+        showToast("已删除", "success");
+    }
+
+    // ==============================
+    // 导入Excel功能（重写版 - 智能识别表头行，替换原有表头，不重复导入）
+    // ==============================
+    function initImportExcel(){
+        let fileInput = document.getElementById('excelFile');
+        fileInput.onchange = function(e){
+            let file = e.target.files[0];
+            if(!file) return;
+
+            let reader = new FileReader();
+            reader.onload = function(ev){
+                try {
+                    let data = new Uint8Array(ev.target.result);
+                    let wb = XLSX.read(data, { type: 'array' });
+                    let firstSheet = wb.Sheets[wb.SheetNames[0]];
+                    let jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+
+                    if(jsonData.length < 2){
+                        showToast("Excel文件为空或格式不正确", "error");
+                        return;
+                    }
+
+                    // 标准列名映射（用于识别表头）
+                    let standardNames = {
+                        '商品图片': 'image', '图片': 'image', 'Picture': 'image', 'picture': 'image', 
+                        'Image': 'image', 'image': 'image', 'IMG': 'image', 'img': 'image', 
+                        '照片': 'image', 'Photo': 'image', 'photo': 'image', '图': 'image',
+                        '商品名称': 'name', '名称': 'name', 'Description': 'name', 'description': 'name', 
+                        'Name': 'name', 'name': 'name', 'Product': 'name', 'product': 'name',
+                        '商品': 'name', '产品': 'name', 'Product Name': 'name', 'product name': 'name',
+                        '品名': 'name', 'Item': 'name', 'item': 'name', '品项': 'name',
+                        '单位': 'unit', 'Unit': 'unit', 'unit': 'unit', 'UOM': 'unit', 'uom': 'unit',
+                        '计量单位': 'unit', 'Units': 'unit', 'units': 'unit',
+                        '数量': 'quantity', 'Quantity': 'quantity', 'quantity': 'quantity', 
+                        'Qty': 'quantity', 'qty': 'quantity', 'QTY': 'quantity',
+                        '数目': 'quantity', 'Count': 'quantity', 'count': 'quantity',
+                        '件数': 'quantity', '件': 'quantity', 'PCS': 'quantity', 'pcs': 'quantity',
+                        '单价': 'unitPrice', 'Unit Price': 'unitPrice', 'unit price': 'unitPrice', 
+                        'Price': 'unitPrice', 'price': 'unitPrice', '单价(元)': 'unitPrice',
+                        'UnitPrice': 'unitPrice', 'unitPrice': 'unitPrice', 'Price/Unit': 'unitPrice',
+                        '价格': 'unitPrice', '单价(RMB)': 'unitPrice', '单价(USD)': 'unitPrice',
+                        '总价': 'amount', 'Amount': 'amount', 'amount': 'amount', 
+                        'Total': 'amount', 'total': 'amount', 'Total Price': 'amount',
+                        '总价(元)': 'amount', '金额': 'amount', '小计': 'amount', 'Subtotal': 'amount',
+                        'TotalAmount': 'amount', 'Total Amount': 'amount', '合计': 'amount',
+                        '备注': 'remark', 'Remark': 'remark', 'remark': 'remark', 
+                        'Remarks': 'remark', 'Note': 'remark', 'Notes': 'remark',
+                        'notes': 'remark', '说明': 'remark', '注释': 'remark', 'Comment': 'remark',
+                        'comment': 'remark', 'Comments': 'remark', '描述': 'remark',
+                        '操作': 'action', 'Action': 'action', 'action': 'action',
+                        '操作列': 'action', 'Actions': 'action', 'actions': 'action'
+                    };
+
+                    // ====== 第一步：智能查找表头行 ======
+                    // 从前10行中找到第一个看起来像表头的行
+                    let headerRowIndex = -1;
+                    let maxScanRows = Math.min(jsonData.length, 10);
+                    
+                    for(let i = 0; i < maxScanRows; i++){
+                        let row = jsonData[i];
+                        if(!row) continue;
+                        
+                        // 统计该行中有多少个单元格是已知的表头名称
+                        let headerMatchCount = 0;
+                        let nonEmptyCount = 0;
+                        
+                        for(let j = 0; j < row.length; j++){
+                            let cell = row[j];
+                            if(cell === '' || cell === null || cell === undefined) continue;
+                            nonEmptyCount++;
+                            
+                            let cellStr = String(cell).trim().toLowerCase();
+                            
+                            // 精确匹配
+                            if(standardNames[cellStr] || standardNames[String(cell).trim()]) {
+                                headerMatchCount++;
+                                continue;
+                            }
+                            
+                            // 模糊匹配
+                            let cleanCell = cellStr.replace(/[\s\-_\(\)（）\[\]]/g, '');
+                            for(let key in standardNames) {
+                                let cleanKey = key.replace(/[\s\-_\(\)（）\[\]]/g, '').toLowerCase();
+                                if(cleanCell === cleanKey) {
+                                    headerMatchCount++;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // 如果非空单元格中超过60%匹配表头名称，且至少匹配2个，认为是表头行
+                        if(nonEmptyCount >= 2 && headerMatchCount >= 2 && (headerMatchCount / nonEmptyCount) >= 0.6) {
+                            headerRowIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    // 如果没找到表头行，默认第一行是表头
+                    if(headerRowIndex === -1) {
+                        headerRowIndex = 0;
+                    }
+
+                    // ====== 第二步：用找到的表头行替换原有表头 ======
+                    let headerRow = jsonData[headerRowIndex];
+                    let newHeaders = [];
+                    let colMapping = [];
+
+                    // 模糊匹配函数
+                    function fuzzyMatch(colName) {
+                        let name = String(colName).trim();
+                        if(!name) return null;
+                        if(standardNames[name]) return standardNames[name];
+                        let cleanName = name.replace(/[\s\-_\(\)（）\[\]]/g, '').toLowerCase();
+                        for(let key in standardNames) {
+                            let cleanKey = key.replace(/[\s\-_\(\)（）\[\]]/g, '').toLowerCase();
+                            if(cleanKey === cleanName) return standardNames[key];
+                        }
+                        let lowerName = name.toLowerCase();
+                        if(/pic|image|img|photo|图|照片/.test(lowerName)) return 'image';
+                        if(/desc|name|product|品名|名称|商品|产品|item/.test(lowerName)) return 'name';
+                        if(/^unit|uom|单位|计量/.test(lowerName)) return 'unit';
+                        if(/qty|quantity|数量|数目|count|件数|pcs/.test(lowerName)) return 'quantity';
+                        if(/unit.?price|price|单价|价格/.test(lowerName)) return 'unitPrice';
+                        if(/total|amount|sum|总价|金额|小计|合计/.test(lowerName)) return 'amount';
+                        if(/remark|note|comment|备注|说明|注释|描述/.test(lowerName)) return 'remark';
+                        if(/action|操作/.test(lowerName)) return 'action';
+                        return 'custom';
+                    }
+
+                    headerRow.forEach((colName, idx) => {
+                        let name = String(colName).trim();
+                        if(!name) return;
+                        let field = fuzzyMatch(name);
+                        if(field === 'action') return; // 跳过操作列
+                        let hId = nextHeaderId++;
+                        let hObj = { 
+                            id: hId, name: name, enName: name, 
+                            type: field === 'image' ? 'image' : (field === 'formula' || field === 'amount' ? 'formula' : 'text')
+                        };
+                        newHeaders.push(hObj);
+                        colMapping.push({ colIdx: idx, field: field, header: hObj, originalName: name });
+                    });
+
+                    if(colMapping.length === 0){
+                        showToast("无法识别Excel表头，请检查格式", "error");
+                        return;
+                    }
+
+                    // ====== 第三步：从表头行之后开始导入数据，跳过所有重复表头行 ======
+                    let newProducts = [];
+                    
+                    // 记录表头行的内容用于去重
+                    let headerCellSet = new Set();
+                    headerRow.forEach(h => {
+                        if(h) headerCellSet.add(String(h).trim().toLowerCase());
+                    });
+
+                    for(let i = headerRowIndex + 1; i < jsonData.length; i++){
+                        let row = jsonData[i];
+                        if(!row || row.every(cell => cell === '' || cell === null || cell === undefined)) continue;
+
+                        // 跳过与表头行完全相同的行
+                        let isDuplicateHeader = true;
+                        let rowHasContent = false;
+                        for(let j = 0; j < Math.max(row.length, headerRow.length); j++){
+                            let rowCell = row[j] !== undefined ? String(row[j]).trim() : '';
+                            let headCell = headerRow[j] !== undefined ? String(headerRow[j]).trim() : '';
+                            if(rowCell !== '') rowHasContent = true;
+                            if(rowCell.toLowerCase() !== headCell.toLowerCase()) isDuplicateHeader = false;
+                        }
+                        if(isDuplicateHeader && rowHasContent) continue;
+
+                        // 跳过所有非空单元格都是表头名称的行
+                        let allHeader = true;
+                        let nonEmpty = 0;
+                        for(let j = 0; j < row.length; j++){
+                            let cell = row[j];
+                            if(cell === '' || cell === null || cell === undefined) continue;
+                            nonEmpty++;
+                            let cellLower = String(cell).trim().toLowerCase();
+                            if(!headerCellSet.has(cellLower) && !standardNames[cellLower] && !standardNames[String(cell).trim()]) {
+                                allHeader = false;
+                            }
+                        }
+                        if(nonEmpty > 0 && allHeader) continue;
+
+                        // 解析数据
+                        let product = { id: Date.now() + i };
+                        let hasData = false;
+
+                        colMapping.forEach(mapping => {
+                            let val = row[mapping.colIdx];
+                            if(val !== '' && val !== null && val !== undefined) hasData = true;
+                            if(mapping.field === 'image'){
+                                product['image'] = '';
+                            } else if(mapping.field === 'quantity'){
+                                let numVal = parseFloat(val);
+                                product['quantity'] = isNaN(numVal) ? 0 : numVal;
+                            } else if(mapping.field === 'unitPrice'){
+                                let numVal = parseFloat(val);
+                                product['unitPrice'] = isNaN(numVal) ? 0 : numVal;
+                            } else if(mapping.field === 'amount' || mapping.field === 'formula'){
+                                let numVal = parseFloat(val);
+                                product['amount'] = isNaN(numVal) ? 0 : numVal;
+                            } else if(mapping.field === 'name'){
+                                product['name'] = String(val);
+                            } else if(mapping.field === 'unit'){
+                                product['unit'] = String(val);
+                            } else if(mapping.field === 'remark'){
+                                product['remark'] = String(val);
+                            } else {
+                                product['field_' + mapping.header.id] = String(val);
+                                product['custom_' + mapping.originalName] = String(val);
+                            }
+                        });
+
+                        if((!product['amount'] || product['amount'] === 0) && product['quantity'] && product['unitPrice']){
+                            product['amount'] = (product['quantity'] * product['unitPrice']).toFixed(2);
+                        }
+                        if(hasData) newProducts.push(product);
+                    }
+
+                    // 尝试提取图片
+                    try {
+                        let images = extractImagesFromExcel(wb);
+                        if(images.length > 0){
+                            images.forEach((imgData, idx) => {
+                                if(idx < newProducts.length) newProducts[idx]['image'] = imgData;
+                            });
+                        }
+                    } catch(e) { console.log("提取图片出错:", e); }
+
+                    // 更新headers（用Excel的表头替换，保留操作列）
+                    headers = newHeaders;
+                    headers.push({ id: nextHeaderId++, name: '操作', enName: 'Action', type: 'action' });
+
+                    productList = newProducts;
+                    renderAll();
+
+                    document.getElementById('importTip').textContent = '成功导入 ' + newProducts.length + ' 条数据（表头行第' + (headerRowIndex + 1) + '行）';
+                    showToast("成功导入 " + newProducts.length + " 条数据", "success");
+
+                } catch(err) {
+                    console.error("导入Excel出错:", err);
+                    showToast("导入失败: " + err.message, "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            fileInput.value = '';
+        };
+    }
+
+    // 从Excel中提取嵌入图片
+    function extractImagesFromExcel(wb){
+        let images = [];
+        try {
+            // XLSX库提取图片的方式
+            let sheet = wb.Sheets[wb.SheetNames[0]];
+            if(sheet['!images']){
+                sheet['!images'].forEach(img => {
+                    if(img.data){
+                        let base64 = 'data:' + (img.mediaType || 'image/png') + ';base64,' + img.data;
+                        images.push(base64);
+                    }
+                });
+            }
+        } catch(e){
+            console.log("图片提取失败:", e);
+        }
+        return images;
+    }
+
+    // ==============================
+    // 表头管理
+    // ==============================
+    function addHeader(){
+        let name = prompt("请输入列名（中文）：");
+        if(!name) return;
+        let enName = prompt("请输入列名（英文）：", name);
+        if(!enName) enName = name;
+        headers.splice(headers.length - 1, 0, { id: nextHeaderId++, name, enName, type:'text' });
+        renderAll();
+    }
+
+    function deleteHeader(id){
+        if(headers.length <= 3){
+            showToast("至少保留3列", "error");
+            return;
+        }
+        headers = headers.filter(h => h.id !== id);
+        renderAll();
+    }
+
+    function renderHeaderList(){
+        let list = document.getElementById('headerList');
+        list.innerHTML = '';
+        headers.forEach(h => {
+            if(h.type === 'action') return; // 不显示操作列
+            let div = document.createElement('div');
+            div.className = 'header-item';
+            div.style.cssText = 'display:flex;align-items:center;background:#edf2f7;border-radius:6px;padding:8px 12px;gap:8px;flex-wrap:wrap;';
+            div.innerHTML = `
+                <input type="text" value="${h.name}" placeholder="中文名" 
+                    style="width:80px;border:1px solid #cbd5e0;border-radius:4px;padding:4px 8px;font-size:13px;"
+                    onchange="updateHeaderName(${h.id}, this.value, 'name')">
+                <input type="text" value="${h.enName}" placeholder="英文名" 
+                    style="width:80px;border:1px solid #cbd5e0;border-radius:4px;padding:4px 8px;font-size:13px;color:#718096;"
+                    onchange="updateHeaderName(${h.id}, this.value, 'enName')">
+                <span class="del-header" onclick="deleteHeader(${h.id})" style="color:#e53e3e;cursor:pointer;font-weight:bold;font-size:14px;">✕</span>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    // 更新表头名称
+    function updateHeaderName(headerId, value, field){
+        let header = headers.find(h => h.id === headerId);
+        if(header){
+            header[field] = value.trim();
+            renderTable(); // 更新表格显示
+            renderFormGrid(); // 更新表单标签
+            showToast("表头已更新", "success");
+        }
+    }
+
+    // ==============================
+    // 表单渲染
+    // ==============================
+    function renderFormGrid(){
+        let grid = document.getElementById('formGrid');
+        grid.innerHTML = '';
+
+        headers.forEach(h => {
+            if(h.type === 'action' || h.type === 'formula') return;
+
+            let group = document.createElement('div');
+            group.className = 'form-group';
+
+            if(h.type === 'image'){
+                group.innerHTML = `
+                    <label>${h.name} | ${h.enName}</label>
+                    <div class="img-upload">
+                        <input type="file" accept="image/*" onchange="handleImgUpload(event)" class="upload-btn" id="imgInput">
+                        <img id="imgPreview" class="img-preview">
+                        <div class="rotate-btns">
+                            <button class="rotate-btn" onclick="rotateImg(-90)">↺ 左旋</button>
+                            <button class="rotate-btn" onclick="rotateImg(90)">↻ 右旋</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                let inputType = (h.type === 'number') ? 'number' : 'text';
+                group.innerHTML = `
+                    <label>${h.name} | ${h.enName}</label>
+                    <input type="${inputType}" id="form_${h.id}" placeholder="请输入${h.name}">
+                `;
+            }
+            grid.appendChild(group);
+        });
+    }
+
+    function handleImgUpload(e){
+        let file = e.target.files[0];
+        if(!file) return;
+        let reader = new FileReader();
+        reader.onload = function(ev){
+            currentImgUrl = ev.target.result;
+            currentImgRotate = 0;
+            let preview = document.getElementById('imgPreview');
+            preview.src = currentImgUrl;
+            preview.style.display = 'block';
+            preview.style.transform = 'rotate(0deg)';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function rotateImg(deg){
+        currentImgRotate += deg;
+        let preview = document.getElementById('imgPreview');
+        preview.style.transform = `rotate(${currentImgRotate}deg)`;
+    }
+
+    // ==============================
+    // 商品管理
+    // ==============================
+    function addProduct(){
+        let product = { id: Date.now() };
+        let hasData = false;
+
+        headers.forEach(h => {
+            if(h.type === 'action') return;
+            if(h.type === 'image'){
+                product['image'] = currentImgUrl;
+                product['imageRotate'] = currentImgRotate;
+                if(currentImgUrl) hasData = true;
+            } else if(h.type === 'formula'){
+                // 总价 = 数量 × 单价
+                let qty = parseFloat(product['quantity']) || 0;
+                let price = parseFloat(product['unitPrice']) || 0;
+                product['amount'] = (qty * price).toFixed(2);
+            } else {
+                let input = document.getElementById('form_' + h.id);
+                let val = input ? input.value.trim() : '';
+                product['field_' + h.id] = val;
+                if(val) hasData = true;
+
+                // 标准字段映射
+                if(h.name.includes('名称') || h.enName.toLowerCase().includes('description') || h.enName.toLowerCase().includes('name') || h.enName.toLowerCase().includes('product')){
+                    product['name'] = val;
+                }
+                if(h.name === '单位' || h.enName.toLowerCase() === 'unit'){
+                    product['unit'] = val;
+                }
+                if(h.name === '数量' || h.enName.toLowerCase().includes('quantity') || h.enName.toLowerCase() === 'qty'){
+                    product['quantity'] = parseFloat(val) || 0;
+                }
+                if(h.name === '单价' || h.enName.toLowerCase().includes('unit price') || h.enName.toLowerCase() === 'price'){
+                    product['unitPrice'] = parseFloat(val) || 0;
+                }
+                if(h.name === '备注' || h.enName.toLowerCase().includes('remark') || h.enName.toLowerCase().includes('note')){
+                    product['remark'] = val;
+                }
+            }
+        });
+
+        // 计算总价
+        let qty = parseFloat(product['quantity']) || 0;
+        let price = parseFloat(product['unitPrice']) || 0;
+        product['amount'] = (qty * price).toFixed(2);
+
+        if(!hasData){
+            showToast("请至少填写一项内容", "error");
+            return;
+        }
+
+        productList.push(product);
+
+        // 重置表单
+        currentImgUrl = "";
+        currentImgRotate = 0;
+        headers.forEach(h => {
+            if(h.type === 'action' || h.type === 'formula' || h.type === 'image') return;
+            let input = document.getElementById('form_' + h.id);
+            if(input) input.value = '';
+        });
+        let preview = document.getElementById('imgPreview');
+        if(preview){ preview.style.display = 'none'; preview.src = ''; }
+        let imgInput = document.getElementById('imgInput');
+        if(imgInput) imgInput.value = '';
+
+        renderTable();
+        showToast("已添加商品", "success");
+    }
+
+    function deleteProduct(id){
+        productList = productList.filter(p => p.id !== id);
+        renderTable();
+    }
+
+    // ==============================
+    // 表格渲染（支持编辑模式）
+    // ==============================
+    let editingProductId = null; // 当前正在编辑的商品ID
+
+    function renderTable(){
+        let thead = document.getElementById('tableHead');
+        let tbody = document.getElementById('tableBody');
+        let empty = document.getElementById('emptyState');
+
+        // 渲染表头
+        let headHtml = '<tr>';
+        headers.forEach(h => {
+            headHtml += `<th>${h.name}<br><span style="font-size:11px;font-weight:normal;opacity:0.8">${h.enName}</span></th>`;
+        });
+        headHtml += '</tr>';
+        thead.innerHTML = headHtml;
+
+        // 渲染表体
+        if(productList.length === 0){
+            tbody.innerHTML = '';
+            empty.style.display = 'block';
+            return;
+        }
+        empty.style.display = 'none';
+
+        let bodyHtml = '';
+        productList.forEach((p, idx) => {
+            let isEditing = (editingProductId === p.id);
+            bodyHtml += '<tr>';
+            headers.forEach(h => {
+                if(h.type === 'action'){
+                    if(isEditing){
+                        // 编辑模式：显示保存和取消按钮
+                        bodyHtml += `<td>
+                            <span class="edit-btn" onclick="saveEdit(${p.id})" style="color:#38a169;cursor:pointer;font-weight:bold;margin-right:8px;">✓ 保存</span>
+                            <span class="cancel-btn" onclick="cancelEdit()" style="color:#718096;cursor:pointer;font-weight:bold;margin-right:8px;">✕ 取消</span>
+                        </td>`;
+                    } else {
+                        // 普通模式：显示编辑和删除按钮
+                        bodyHtml += `<td>
+                            <span class="edit-btn" onclick="startEdit(${p.id})" style="color:#4299e1;cursor:pointer;font-weight:bold;margin-right:8px;">✎ 编辑</span>
+                            <span class="del-btn" onclick="deleteProduct(${p.id})" style="color:#e53e3e;cursor:pointer;font-weight:bold;">✕ 删除</span>
+                        </td>`;
+                    }
+                } else if(h.type === 'image'){
+                    if(isEditing){
+                        // 编辑模式：显示图片上传控件
+                        bodyHtml += `<td>
+                            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+                                ${p.image ? `<img class="product-img" src="${p.image}" style="width:50px;height:50px;object-fit:cover;border-radius:4px;${p.imageRotate ? 'transform:rotate('+p.imageRotate+'deg)' : ''}">` : '<span style="color:#cbd5e0;font-size:12px;">无图片</span>'}
+                                <input type="file" accept="image/*" onchange="handleEditImgUpload(event, ${p.id})" style="width:80px;font-size:10px;">
+                                <div style="display:flex;gap:3px;">
+                                    <button onclick="rotateEditImg(${p.id}, -90)" style="padding:2px 5px;font-size:10px;background:#4299e1;color:white;border:none;border-radius:3px;cursor:pointer;">↺</button>
+                                    <button onclick="rotateEditImg(${p.id}, 90)" style="padding:2px 5px;font-size:10px;background:#4299e1;color:white;border:none;border-radius:3px;cursor:pointer;">↻</button>
+                                </div>
+                            </div>
+                        </td>`;
+                    } else {
+                        // 普通模式：只显示图片
+                        if(p.image){
+                            let rotateStyle = p.imageRotate ? `transform:rotate(${p.imageRotate}deg)` : '';
+                            bodyHtml += `<td><img class="product-img" src="${p.image}" style="${rotateStyle}" onclick="previewImg('${p.image}')"></td>`;
+                        } else {
+                            bodyHtml += '<td style="color:#cbd5e0">无图片</td>';
+                        }
+                    }
+                } else if(h.type === 'formula'){
+                    if(isEditing){
+                        // 编辑模式：数量或单价改变时自动计算
+                        let qty = p.quantity || 0;
+                        let price = p.unitPrice || 0;
+                        let amount = (qty * price).toFixed(2);
+                        bodyHtml += `<td><span id="edit-amount-${p.id}">${amount}</span> ${PRICE_UNIT}</td>`;
+                    } else {
+                        bodyHtml += `<td>${p.amount || '0.00'} ${PRICE_UNIT}</td>`;
+                    }
+                } else {
+                    // 普通文本字段
+                    let val = p['field_' + h.id] || p[getFieldKey(h)] || '';
+                    let fieldKey = getFieldKey(h);
+                    if(isEditing){
+                        // 编辑模式：显示输入框
+                        let inputType = (fieldKey === 'quantity' || fieldKey === 'unitPrice') ? 'number' : 'text';
+                        let onChangeHandler = (fieldKey === 'quantity' || fieldKey === 'unitPrice') ? `onchange="updateEditAmount(${p.id})"` : '';
+                        bodyHtml += `<td><input type="${inputType}" id="edit-${p.id}-${fieldKey || h.id}" value="${val}" style="width:90%;padding:5px;border:1px solid #4299e1;border-radius:4px;" ${onChangeHandler}></td>`;
+                    } else {
+                        bodyHtml += `<td>${val}</td>`;
+                    }
+                }
+            });
+            bodyHtml += '</tr>';
+        });
+
+        // 汇总行
+        let totalAmount = productList.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        bodyHtml += `<tr class="summary-row"><td colspan="${headers.length - 2}">合计 Total</td><td>${totalAmount.toFixed(2)} ${PRICE_UNIT}</td><td></td></tr>`;
+
+        tbody.innerHTML = bodyHtml;
+    }
+
+    // ==============================
+    // 编辑功能
+    // ==============================
+    function startEdit(productId){
+        editingProductId = productId;
+        renderTable();
+        showToast("进入编辑模式，修改后点击保存", "");
+    }
+
+    function cancelEdit(){
+        editingProductId = null;
+        renderTable();
+        showToast("已取消编辑", "");
+    }
+
+    function updateEditAmount(productId){
+        let qty = parseFloat(document.getElementById(`edit-${productId}-quantity`).value) || 0;
+        let price = parseFloat(document.getElementById(`edit-${productId}-unitPrice`).value) || 0;
+        let amount = (qty * price).toFixed(2);
+        let amountEl = document.getElementById(`edit-amount-${productId}`);
+        if(amountEl) amountEl.textContent = amount;
+    }
+
+    function handleEditImgUpload(event, productId){
+        let file = event.target.files[0];
+        if(!file) return;
+        let reader = new FileReader();
+        reader.onload = function(ev){
+            let product = productList.find(p => p.id === productId);
+            if(product){
+                product.image = ev.target.result;
+                product.imageRotate = 0;
+                renderTable(); // 重新渲染显示新图片
+                // 恢复编辑模式
+                editingProductId = productId;
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function rotateEditImg(productId, deg){
+        let product = productList.find(p => p.id === productId);
+        if(product){
+            product.imageRotate = (product.imageRotate || 0) + deg;
+            renderTable();
+            // 恢复编辑模式
+            editingProductId = productId;
+        }
+    }
+
+    function saveEdit(productId){
+        let product = productList.find(p => p.id === productId);
+        if(!product) return;
+
+        // 更新所有字段
+        headers.forEach(h => {
+            if(h.type === 'action' || h.type === 'image' || h.type === 'formula') return;
+            
+            let fieldKey = getFieldKey(h);
+            let inputId = `edit-${productId}-${fieldKey || h.id}`;
+            let input = document.getElementById(inputId);
+            if(input){
+                let val = input.value.trim();
+                product['field_' + h.id] = val;
+                
+                // 更新标准字段
+                if(fieldKey === 'name') product['name'] = val;
+                if(fieldKey === 'unit') product['unit'] = val;
+                if(fieldKey === 'quantity') product['quantity'] = parseFloat(val) || 0;
+                if(fieldKey === 'unitPrice') product['unitPrice'] = parseFloat(val) || 0;
+                if(fieldKey === 'remark') product['remark'] = val;
+            }
+        });
+
+        // 重新计算总价
+        let qty = parseFloat(product['quantity']) || 0;
+        let price = parseFloat(product['unitPrice']) || 0;
+        product['amount'] = (qty * price).toFixed(2);
+
+        // 退出编辑模式
+        editingProductId = null;
+        renderTable();
+        showToast("保存成功", "success");
+    }
+
+    function getFieldKey(h){
+        let name = h.name;
+        let en = (h.enName || '').toLowerCase();
+        if(name.includes('名称') || en.includes('description') || en.includes('name') || en.includes('product')) return 'name';
+        if(name === '单位' || en === 'unit') return 'unit';
+        if(name === '数量' || en.includes('quantity') || en === 'qty') return 'quantity';
+        if(name === '单价' || en.includes('unit price') || en === 'price') return 'unitPrice';
+        if(name === '备注' || en.includes('remark') || en.includes('note')) return 'remark';
+        return '';
+    }
+
+    function previewImg(src){
+        document.getElementById('modalImg').src = src;
+        document.getElementById('shareModal').style.display = 'flex';
+    }
+
+    function closeModal(){
+        document.getElementById('shareModal').style.display = 'none';
+    }
+
+    // ==============================
+    // 保存当前表
+    // ==============================
+    function saveCurrentTable(){
+        saveAsHistory();
+    }
+
+    // ==============================
+    // 打印
+    // ==============================
+    function printTable(){
+        window.print();
+    }
+
+    // ==============================
+    // 导出Excel（修复版 - 使用ExcelJS，支持图片和精细样式）
+    // ==============================
+    async function exportExcel(){
+        if(productList.length === 0){
+            showToast("没有数据可导出", "error");
+            return;
+        }
+
+        showToast("正在生成Excel，请稍候...", "");
+
+        try {
+            let workbook = new ExcelJS.Workbook();
+            let sheet = workbook.addWorksheet('销售单', {
+                pageSetup: {
+                    paperSize: 9, // A4
+                    orientation: 'landscape',
+                    fitToPage: true
+                }
+            });
+
+            // 获取导出列（排除操作列）
+            let exportHeaders = headers.filter(h => h.type !== 'action');
+
+            // ====== 设置列宽 ======
+            let columns = [];
+            exportHeaders.forEach(h => {
+                if(h.type === 'image'){
+                    columns.push({ width: 18 });
+                } else if(h.type === 'formula'){
+                    columns.push({ width: 16 });
+                } else if(h.name.includes('名称') || h.enName.toLowerCase().includes('description')){
+                    columns.push({ width: 28 });
+                } else if(h.name === '备注' || h.enName.toLowerCase().includes('remark')){
+                    columns.push({ width: 22 });
+                } else {
+                    columns.push({ width: 14 });
+                }
+            });
+            sheet.columns = columns;
+
+            // ====== 表头样式 ======
+            let headerRow = new Array(exportHeaders.length).fill('');
+            exportHeaders.forEach((h, idx) => {
+                headerRow[idx] = h.name + ' ' + h.enName;
+            });
+
+            let hRow = sheet.addRow(headerRow);
+            hRow.height = 36;
+
+            // 表头单元格样式
+            hRow.eachCell((cell, colNumber) => {
+                cell.font = {
+                    name: 'Microsoft YaHei',
+                    size: 11,
+                    bold: true,
+                    color: { argb: 'FFFFFFFF' }
+                };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FF2D3748' }
+                };
+                cell.alignment = {
+                    horizontal: 'center',
+                    vertical: 'middle',
+                    wrapText: true
+                };
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+            });
+
+            // ====== 数据行 ======
+            for(let i = 0; i < productList.length; i++){
+                let p = productList[i];
+                let rowData = [];
+
+                exportHeaders.forEach(h => {
+                    if(h.type === 'image'){
+                        rowData.push(''); // 图片占位，后面插入
+                    } else if(h.type === 'formula'){
+                        rowData.push(p.amount || '0.00');
+                    } else {
+                        let val = p['field_' + h.id] || p[getFieldKey(h)] || '';
+                        rowData.push(val);
+                    }
+                });
+
+                let row = sheet.addRow(rowData);
+                row.height = 50; // 行高
+
+                // 数据行样式
+                row.eachCell((cell, colNumber) => {
+                    cell.font = {
+                        name: 'Microsoft YaHei',
+                        size: 10,
+                        color: { argb: 'FF2D3748' }
+                    };
+                    cell.alignment = {
+                        horizontal: 'center',
+                        vertical: 'middle',
+                        wrapText: true
+                    };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                        right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                    };
+                });
+
+                // 交替行背景色
+                if(i % 2 === 1){
+                    row.eachCell((cell) => {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFF7FAFC' }
+                        };
+                    });
+                }
+
+                // 插入图片
+                let imgColIdx = exportHeaders.findIndex(h => h.type === 'image');
+                if(imgColIdx !== -1 && p.image){
+                    try {
+                        let imgData = p.image;
+                        // 处理base64图片
+                        let base64Data = imgData;
+                        if(imgData.startsWith('data:')){
+                            base64Data = imgData.split(',')[1];
+                        }
+
+                        let imageId = workbook.addImage({
+                            base64: base64Data,
+                            extension: imgData.includes('png') ? 'png' : 'jpeg',
+                        });
+
+                        // 图片插入位置（行号从1开始，当前是第i+2行，因为第1行是表头）
+                        sheet.addImage(imageId, {
+                            tl: { col: imgColIdx, row: i + 1 },
+                            ext: { width: 60, height: 60 }
+                        });
+                    } catch(imgErr){
+                        console.log("插入图片失败:", imgErr);
+                    }
+                }
+            }
+
+            // ====== 汇总行 ======
+            let totalAmount = productList.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            let summaryData = new Array(exportHeaders.length).fill('');
+            summaryData[0] = '合计 Total';
+            // 找到总价列
+            let amountColIdx = exportHeaders.findIndex(h => h.type === 'formula');
+            if(amountColIdx !== -1){
+                summaryData[amountColIdx] = totalAmount.toFixed(2) + ' ' + PRICE_UNIT;
+            }
+
+            let summaryRow = sheet.addRow(summaryData);
+            summaryRow.height = 32;
+
+            summaryRow.eachCell((cell) => {
+                cell.font = {
+                    name: 'Microsoft YaHei',
+                    size: 11,
+                    bold: true,
+                    color: { argb: 'FF2D3748' }
+                };
+                cell.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFEDF2F7' }
+                };
+                cell.alignment = {
+                    horizontal: 'center',
+                    vertical: 'middle'
+                };
+                cell.border = {
+                    top: { style: 'medium', color: { argb: 'FF2D3748' } },
+                    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    bottom: { style: 'medium', color: { argb: 'FF2D3748' } },
+                    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+                };
+            });
+
+            // ====== 导出文件 ======
+            let buffer = await workbook.xlsx.writeBuffer();
+            let blob = new Blob([buffer], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            saveAs(blob, '销售单_' + new Date().toLocaleDateString().replace(/\//g, '-') + '.xlsx');
+
+            showToast("Excel导出成功！", "success");
+
+        } catch(err){
+            console.error("导出Excel出错:", err);
+            showToast("导出失败: " + err.message, "error");
+        }
+    }
+
+    // ==============================
+    // 生成分享图（隐藏操作列）
+    // ==============================
+    async function generateShareImg(){
+        if(productList.length === 0){
+            showToast("没有数据可生成", "error");
+            return;
+        }
+
+        showToast("正在生成图片...", "");
+
+        try {
+            // 临时隐藏操作列
+            let actionThs = document.querySelectorAll('.price-table th:last-child');
+            let actionTds = document.querySelectorAll('.price-table td:last-child');
+            
+            actionThs.forEach(th => th.style.display = 'none');
+            actionTds.forEach(td => td.style.display = 'none');
+
+            let tableEl = document.querySelector('.table-container');
+            let canvas = await html2canvas(tableEl, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+
+            // 恢复操作列显示
+            actionThs.forEach(th => th.style.display = '');
+            actionTds.forEach(td => td.style.display = '');
+
+            let dataUrl = canvas.toDataURL('image/png');
+            document.getElementById('modalImg').src = dataUrl;
+            document.getElementById('shareModal').style.display = 'flex';
+            showToast("图片生成成功", "success");
+        } catch(err){
+            showToast("生成失败: " + err.message, "error");
+        }
+    }
+
+    function saveShareImg(){
+        let img = document.getElementById('modalImg');
+        let link = document.createElement('a');
+        link.download = '销售单_' + new Date().toLocaleDateString().replace(/\//g, '-') + '.png';
+        link.href = img.src;
+        link.click();
+        showToast("图片已保存", "success");
+    }
+
+    // ==============================
+    // 渲染全部
+    // ==============================
+    function renderAll(){
+        renderHeaderList();
+        renderFormGrid();
+        renderTable();
+    }
+
+    function loadDefaultTable(){
+        renderAll();
+    }
+</script>
+</body>
+</html>
